@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="004-create-allowed-email-domain" author="saint-pierre.kassi">
+        <createTable tableName="allowed_email_domain">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="domain" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="UUID"/>
+        </createTable>
+
+        <insert tableName="allowed_email_domain">
+            <column name="id" value="9a5f6e30-9b1e-4f9a-9a8a-2f1a4d7c8e01"/>
+            <column name="domain" value="pfo-africa.com"/>
+            <column name="is_active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+        <insert tableName="allowed_email_domain">
+            <column name="id" value="9a5f6e30-9b1e-4f9a-9a8a-2f1a4d7c8e02"/>
+            <column name="domain" value="pfoafrica-senegal.com"/>
+            <column name="is_active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="005-create-app-user" author="saint-pierre.kassi">
+        <createTable tableName="app_user">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="password_hash" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="full_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="site_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="department_id" type="UUID"/>
+            <column name="job_title_id" type="UUID"/>
+            <column name="phone_number" type="VARCHAR(30)"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_login_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="UUID"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="app_user" baseColumnNames="site_id"
+                referencedTableName="site" referencedColumnNames="id"
+                constraintName="fk_user_site"/>
+        <addForeignKeyConstraint
+                baseTableName="app_user" baseColumnNames="department_id"
+                referencedTableName="department" referencedColumnNames="id"
+                constraintName="fk_user_department"/>
+        <addForeignKeyConstraint
+                baseTableName="app_user" baseColumnNames="job_title_id"
+                referencedTableName="job_title" referencedColumnNames="id"
+                constraintName="fk_user_job_title"/>
+    </changeSet>
+
+</databaseChangeLog>

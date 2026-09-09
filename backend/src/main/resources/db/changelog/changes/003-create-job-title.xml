@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="003-create-job-title" author="saint-pierre.kassi">
+        <createTable tableName="job_title">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="UUID"/>
+        </createTable>
+
+        <!-- Seed des postes courants observes dans le parc PFO Africa -->
+        <insert tableName="job_title">
+            <column name="id" value="65079cd3-d4f7-4240-a25d-a36baba670a8"/>
+            <column name="title" value="Chargé Support IT"/>
+            <column name="is_active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+        <insert tableName="job_title">
+            <column name="id" value="f8702a1d-848a-4311-8087-5d474736d1a8"/>
+            <column name="title" value="Administrateur Réseaux et Systèmes"/>
+            <column name="is_active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+        <insert tableName="job_title">
+            <column name="id" value="658716e7-6284-491d-8838-2d47f0ba5cbf"/>
+            <column name="title" value="Comptable"/>
+            <column name="is_active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+        <insert tableName="job_title">
+            <column name="id" value="fee9cb19-116b-4cb2-a373-b5c399145173"/>
+            <column name="title" value="Chef de Chantier"/>
+            <column name="is_active" valueBoolean="true"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="002-create-department" author="saint-pierre.kassi">
+        <createTable tableName="department">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="site_id" type="UUID"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="department" baseColumnNames="site_id"
+                referencedTableName="site" referencedColumnNames="id"
+                constraintName="fk_department_site"/>
+
+        <insert tableName="department">
+            <column name="id" value="2f3e4d5c-6b7a-4899-8021-2b3c4d5e6f01"/>
+            <column name="name" value="IT"/>
+            <column name="site_id" value="1e2d3c4b-5a69-4788-9f10-1a2b3c4d5e01"/>
+            <column name="is_active" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

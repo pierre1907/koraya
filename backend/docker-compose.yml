@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: koraya-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: koraya
+      POSTGRES_USER: koraya
+      POSTGRES_PASSWORD: koraya
+    ports:
+      - "5432:5432"
+    volumes:
+      - koraya-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  koraya-postgres-data:
