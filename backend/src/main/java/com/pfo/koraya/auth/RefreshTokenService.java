@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Optional;
 
 /**
  * Le refresh token est une chaine aleatoire opaque (pas un JWT) stockee hashee
@@ -62,11 +63,15 @@ public class RefreshTokenService {
         return token;
     }
 
+    /**
+     * Revoque le refresh token s'il existe et renvoie l'entite correspondante,
+     * pour permettre a l'appelant de tracer le proprietaire en audit_log.
+     */
     @Transactional
-    public void revoke(String rawToken) {
-        repository.findByTokenHash(hash(rawToken)).ifPresent(token -> {
+    public Optional<RefreshToken> revoke(String rawToken) {
+        return repository.findByTokenHash(hash(rawToken)).map(token -> {
             token.setRevokedAt(Instant.now());
-            repository.save(token);
+            return repository.save(token);
         });
     }
 
