@@ -1,5 +1,6 @@
 package com.pfo.koraya.organization;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,15 @@ public class JobTitleService {
                 .toList();
     }
 
+    public List<JobTitle> findAll() {
+        return jobTitleRepository.findAll();
+    }
+
+    public JobTitle findById(UUID id) {
+        return jobTitleRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Poste introuvable"));
+    }
+
     /**
      * Retourne le poste existant (recherche insensible a la casse),
      * ou le cree a la volee si aucun ne correspond.
@@ -33,5 +43,32 @@ public class JobTitleService {
                     jobTitle.setCreatedBy(createdBy);
                     return jobTitleRepository.save(jobTitle);
                 });
+    }
+
+    @Transactional
+    public JobTitle create(String title, UUID createdBy) {
+        String trimmed = title.trim();
+        if (jobTitleRepository.findByTitleIgnoreCase(trimmed).isPresent()) {
+            throw new IllegalStateException("Ce poste existe deja");
+        }
+        JobTitle jobTitle = new JobTitle();
+        jobTitle.setTitle(trimmed);
+        jobTitle.setCreatedBy(createdBy);
+        return jobTitleRepository.save(jobTitle);
+    }
+
+    @Transactional
+    public JobTitle update(UUID id, String title, boolean active) {
+        JobTitle jobTitle = findById(id);
+        jobTitle.setTitle(title.trim());
+        jobTitle.setActive(active);
+        return jobTitleRepository.save(jobTitle);
+    }
+
+    @Transactional
+    public void deactivate(UUID id) {
+        JobTitle jobTitle = findById(id);
+        jobTitle.setActive(false);
+        jobTitleRepository.save(jobTitle);
     }
 }
