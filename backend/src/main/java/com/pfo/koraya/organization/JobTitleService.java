@@ -1,5 +1,6 @@
 package com.pfo.koraya.organization;
 
+import com.pfo.koraya.audit.AuditLogService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import java.util.UUID;
 public class JobTitleService {
 
     private final JobTitleRepository jobTitleRepository;
+    private final AuditLogService auditLogService;
 
     public List<JobTitle> findAllActive() {
         return jobTitleRepository.findAll().stream()
@@ -54,21 +56,29 @@ public class JobTitleService {
         JobTitle jobTitle = new JobTitle();
         jobTitle.setTitle(trimmed);
         jobTitle.setCreatedBy(createdBy);
-        return jobTitleRepository.save(jobTitle);
+        JobTitle saved = jobTitleRepository.save(jobTitle);
+        auditLogService.record(createdBy, "JOB_TITLE_CREATED", "JobTitle", saved.getId(),
+                "Poste cree : " + saved.getTitle());
+        return saved;
     }
 
     @Transactional
-    public JobTitle update(UUID id, String title, boolean active) {
+    public JobTitle update(UUID id, String title, boolean active, UUID actorId) {
         JobTitle jobTitle = findById(id);
         jobTitle.setTitle(title.trim());
         jobTitle.setActive(active);
-        return jobTitleRepository.save(jobTitle);
+        JobTitle saved = jobTitleRepository.save(jobTitle);
+        auditLogService.record(actorId, "JOB_TITLE_UPDATED", "JobTitle", saved.getId(),
+                "Poste mis a jour : " + saved.getTitle());
+        return saved;
     }
 
     @Transactional
-    public void deactivate(UUID id) {
+    public void deactivate(UUID id, UUID actorId) {
         JobTitle jobTitle = findById(id);
         jobTitle.setActive(false);
         jobTitleRepository.save(jobTitle);
+        auditLogService.record(actorId, "JOB_TITLE_DEACTIVATED", "JobTitle", jobTitle.getId(),
+                "Poste desactive : " + jobTitle.getTitle());
     }
 }

@@ -20,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,9 +43,15 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password())
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.email(), request.password())
+            );
+        } catch (AuthenticationException e) {
+            auditLogService.record(null, "LOGIN_FAILED", "User", null,
+                    "Tentative de connexion echouee : " + request.email());
+            throw e;
+        }
 
         User user = userRepository.findByEmailIgnoreCase(request.email())
                 .orElseThrow(() -> new BadCredentialsException("Identifiants invalides"));
@@ -54,6 +61,9 @@ public class AuthController {
 
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = refreshTokenService.issue(user);
+
+        auditLogService.record(user.getId(), "LOGIN_SUCCESS", "User", user.getId(),
+                "Connexion reussie : " + user.getEmail());
 
         return ResponseEntity.ok(LoginResponse.of(accessToken, refreshToken, user.getFullName(), user.getRole().name()));
     }
@@ -69,12 +79,16 @@ public class AuthController {
         String accessToken = jwtService.generateAccessToken(user);
         String newRefreshToken = refreshTokenService.issue(user);
 
+        auditLogService.record(user.getId(), "TOKEN_REFRESHED", "User", user.getId(), "Renouvellement de session");
+
         return ResponseEntity.ok(LoginResponse.of(accessToken, newRefreshToken, user.getFullName(), user.getRole().name()));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
-        refreshTokenService.revoke(request.refreshToken());
+        refreshTokenService.revoke(request.refreshToken())
+                .ifPresent(token -> auditLogService.record(token.getUserId(), "LOGOUT", "User",
+                        token.getUserId(), "Deconnexion"));
         return ResponseEntity.noContent().build();
     }
 

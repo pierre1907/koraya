@@ -35,14 +35,15 @@ public class JobTitleAdminController {
 
     @PutMapping("/{id}")
     public ResponseEntity<JobTitleAdminResponse> update(
-            @PathVariable UUID id, @Valid @RequestBody JobTitleUpdateRequest request) {
-        JobTitle jobTitle = jobTitleService.update(id, request.title(), request.active());
+            @PathVariable UUID id, @Valid @RequestBody JobTitleUpdateRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        JobTitle jobTitle = jobTitleService.update(id, request.title(), request.active(), currentUser.getId());
         return ResponseEntity.ok(JobTitleAdminResponse.of(jobTitle));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deactivate(@PathVariable UUID id) {
-        jobTitleService.deactivate(id);
+    public ResponseEntity<Void> deactivate(@PathVariable UUID id, @AuthenticationPrincipal User currentUser) {
+        jobTitleService.deactivate(id, currentUser.getId());
         return ResponseEntity.noContent().build();
     }
 }

@@ -1,5 +1,6 @@
 package com.pfo.koraya.organization;
 
+import com.pfo.koraya.audit.AuditLogService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ public class DepartmentService {
 
     private final DepartmentRepository departmentRepository;
     private final SiteRepository siteRepository;
+    private final AuditLogService auditLogService;
 
     public List<Department> findAll() {
         return departmentRepository.findAll();
@@ -25,20 +27,26 @@ public class DepartmentService {
     }
 
     @Transactional
-    public Department create(String name, UUID siteId) {
+    public Department create(String name, UUID siteId, UUID actorId) {
         Department department = new Department();
         department.setName(name.trim());
         department.setSite(resolveSite(siteId));
-        return departmentRepository.save(department);
+        Department saved = departmentRepository.save(department);
+        auditLogService.record(actorId, "DEPARTMENT_CREATED", "Department", saved.getId(),
+                "Departement cree : " + saved.getName());
+        return saved;
     }
 
     @Transactional
-    public Department update(UUID id, String name, UUID siteId, boolean active) {
+    public Department update(UUID id, String name, UUID siteId, boolean active, UUID actorId) {
         Department department = findById(id);
         department.setName(name.trim());
         department.setSite(resolveSite(siteId));
         department.setActive(active);
-        return departmentRepository.save(department);
+        Department saved = departmentRepository.save(department);
+        auditLogService.record(actorId, "DEPARTMENT_UPDATED", "Department", saved.getId(),
+                "Departement mis a jour : " + saved.getName());
+        return saved;
     }
 
     /**
@@ -46,10 +54,12 @@ public class DepartmentService {
      * deja rattaches a ce departement.
      */
     @Transactional
-    public void deactivate(UUID id) {
+    public void deactivate(UUID id, UUID actorId) {
         Department department = findById(id);
         department.setActive(false);
         departmentRepository.save(department);
+        auditLogService.record(actorId, "DEPARTMENT_DEACTIVATED", "Department", department.getId(),
+                "Departement desactive : " + department.getName());
     }
 
     private Site resolveSite(UUID siteId) {
