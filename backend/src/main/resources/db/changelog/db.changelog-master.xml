@@ -10,5 +10,6 @@
     <include file="db/changelog/changes/003-create-job-title.xml" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/004-create-allowed-email-domain.xml" relativeToChangelogFile="false"/>
     <include file="db/changelog/changes/005-create-app-user.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/006-create-refresh-token.xml" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

@@ -3,6 +3,7 @@ package com.pfo.koraya.auth;
 import com.pfo.koraya.auth.dto.AllowedDomainSummary;
 import com.pfo.koraya.auth.dto.LoginRequest;
 import com.pfo.koraya.auth.dto.LoginResponse;
+import com.pfo.koraya.auth.dto.RefreshTokenRequest;
 import com.pfo.koraya.auth.dto.RegisterRequest;
 import com.pfo.koraya.auth.dto.SiteSummary;
 import com.pfo.koraya.domainwhitelist.AllowedEmailDomain;
@@ -31,6 +32,7 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
     private final SiteRepository siteRepository;
     private final AllowedEmailDomainService allowedEmailDomainService;
@@ -49,8 +51,29 @@ public class AuthController {
         userRepository.save(user);
 
         String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = refreshTokenService.issue(user);
 
-        return ResponseEntity.ok(LoginResponse.of(accessToken, user.getFullName(), user.getRole().name()));
+        return ResponseEntity.ok(LoginResponse.of(accessToken, refreshToken, user.getFullName(), user.getRole().name()));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        RefreshToken consumed = refreshTokenService.consume(request.refreshToken());
+
+        User user = userRepository.findById(consumed.getUserId())
+                .filter(User::isActive)
+                .orElseThrow(() -> new BadCredentialsException("Utilisateur invalide"));
+
+        String accessToken = jwtService.generateAccessToken(user);
+        String newRefreshToken = refreshTokenService.issue(user);
+
+        return ResponseEntity.ok(LoginResponse.of(accessToken, newRefreshToken, user.getFullName(), user.getRole().name()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
+        refreshTokenService.revoke(request.refreshToken());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/register/sites")
@@ -94,7 +117,8 @@ public class AuthController {
         userRepository.save(user);
 
         String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = refreshTokenService.issue(user);
 
-        return ResponseEntity.ok(LoginResponse.of(accessToken, user.getFullName(), user.getRole().name()));
+        return ResponseEntity.ok(LoginResponse.of(accessToken, refreshToken, user.getFullName(), user.getRole().name()));
     }
 }
