@@ -6,12 +6,14 @@ import com.pfo.koraya.domainwhitelist.dto.AllowedEmailDomainStatusRequest;
 import com.pfo.koraya.user.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -22,10 +24,9 @@ public class AllowedEmailDomainAdminController {
     private final AllowedEmailDomainService allowedEmailDomainService;
 
     @GetMapping
-    public ResponseEntity<List<AllowedEmailDomainAdminResponse>> list() {
-        return ResponseEntity.ok(allowedEmailDomainService.findAll().stream()
-                .map(AllowedEmailDomainAdminResponse::of)
-                .toList());
+    public ResponseEntity<Page<AllowedEmailDomainAdminResponse>> list(
+            @PageableDefault(size = 20, sort = "domain") Pageable pageable) {
+        return ResponseEntity.ok(allowedEmailDomainService.findAll(pageable).map(AllowedEmailDomainAdminResponse::of));
     }
 
     @PostMapping

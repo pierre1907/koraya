@@ -3,6 +3,8 @@ package com.pfo.koraya.domainwhitelist;
 import com.pfo.koraya.audit.AuditLogService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,8 +22,8 @@ public class AllowedEmailDomainService {
         return repository.findByActiveTrue();
     }
 
-    public List<AllowedEmailDomain> findAll() {
-        return repository.findAll();
+    public Page<AllowedEmailDomain> findAll(Pageable pageable) {
+        return repository.findAll(pageable);
     }
 
     /**

@@ -6,12 +6,14 @@ import com.pfo.koraya.organization.dto.DepartmentUpdateRequest;
 import com.pfo.koraya.user.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -22,8 +24,9 @@ public class DepartmentAdminController {
     private final DepartmentService departmentService;
 
     @GetMapping
-    public ResponseEntity<List<DepartmentAdminResponse>> list() {
-        return ResponseEntity.ok(departmentService.findAll().stream().map(DepartmentAdminResponse::of).toList());
+    public ResponseEntity<Page<DepartmentAdminResponse>> list(
+            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+        return ResponseEntity.ok(departmentService.findAll(pageable).map(DepartmentAdminResponse::of));
     }
 
     @PostMapping
