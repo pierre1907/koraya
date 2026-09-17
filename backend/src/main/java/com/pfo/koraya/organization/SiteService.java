@@ -3,10 +3,11 @@ package com.pfo.koraya.organization;
 import com.pfo.koraya.audit.AuditLogService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -16,8 +17,8 @@ public class SiteService {
     private final SiteRepository siteRepository;
     private final AuditLogService auditLogService;
 
-    public List<Site> findAll() {
-        return siteRepository.findAll();
+    public Page<Site> findAll(Pageable pageable) {
+        return siteRepository.findAll(pageable);
     }
 
     public Site findById(UUID id) {

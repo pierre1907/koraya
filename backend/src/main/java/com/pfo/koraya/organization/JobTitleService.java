@@ -3,6 +3,8 @@ package com.pfo.koraya.organization;
 import com.pfo.koraya.audit.AuditLogService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,8 +24,8 @@ public class JobTitleService {
                 .toList();
     }
 
-    public List<JobTitle> findAll() {
-        return jobTitleRepository.findAll();
+    public Page<JobTitle> findAll(Pageable pageable) {
+        return jobTitleRepository.findAll(pageable);
     }
 
     public JobTitle findById(UUID id) {

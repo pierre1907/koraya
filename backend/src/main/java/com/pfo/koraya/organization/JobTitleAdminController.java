@@ -6,12 +6,14 @@ import com.pfo.koraya.organization.dto.JobTitleUpdateRequest;
 import com.pfo.koraya.user.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -22,8 +24,9 @@ public class JobTitleAdminController {
     private final JobTitleService jobTitleService;
 
     @GetMapping
-    public ResponseEntity<List<JobTitleAdminResponse>> list() {
-        return ResponseEntity.ok(jobTitleService.findAll().stream().map(JobTitleAdminResponse::of).toList());
+    public ResponseEntity<Page<JobTitleAdminResponse>> list(
+            @PageableDefault(size = 20, sort = "title") Pageable pageable) {
+        return ResponseEntity.ok(jobTitleService.findAll(pageable).map(JobTitleAdminResponse::of));
     }
 
     @PostMapping

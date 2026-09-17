@@ -5,12 +5,14 @@ import com.pfo.koraya.user.dto.UserAdminResponse;
 import com.pfo.koraya.user.dto.UserAdminUpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -21,8 +23,9 @@ public class UserAdminController {
     private final UserAdminService userAdminService;
 
     @GetMapping
-    public ResponseEntity<List<UserAdminResponse>> list() {
-        return ResponseEntity.ok(userAdminService.findAll().stream().map(UserAdminResponse::of).toList());
+    public ResponseEntity<Page<UserAdminResponse>> list(
+            @PageableDefault(size = 20, sort = "fullName") Pageable pageable) {
+        return ResponseEntity.ok(userAdminService.findAll(pageable).map(UserAdminResponse::of));
     }
 
     @GetMapping("/{id}")
