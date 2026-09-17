@@ -32,6 +32,9 @@ public class SecurityConfig {
     // Endpoints publics : pas d'authentification requise
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/register/sites",
+            "/api/auth/register/domains",
             "/actuator/health",
             "/actuator/health/**"
     };
