@@ -1,5 +1,6 @@
 package com.pfo.koraya.auth;
 
+import com.pfo.koraya.audit.AuditLogService;
 import com.pfo.koraya.auth.dto.AllowedDomainSummary;
 import com.pfo.koraya.auth.dto.LoginRequest;
 import com.pfo.koraya.auth.dto.LoginResponse;
@@ -35,6 +36,7 @@ public class AuthController {
     private final SiteRepository siteRepository;
     private final AllowedEmailDomainService allowedEmailDomainService;
     private final PasswordEncoder passwordEncoder;
+    private final AuditLogService auditLogService;
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
@@ -92,6 +94,8 @@ public class AuthController {
         user.setRole(Role.USER);
         user.setSite(site);
         userRepository.save(user);
+        auditLogService.record(user.getId(), "USER_REGISTERED", "User", user.getId(),
+                "Inscription via formulaire public : " + email);
 
         String accessToken = jwtService.generateAccessToken(user);
 
