@@ -1,17 +1,25 @@
+import { ReactNode } from "react";
+import Breadcrumb from "@/components/layout/Breadcrumb";
+import { AdminIcon } from "@/components/layout/icons";
+
 interface AdminPageHeaderProps {
   title: string;
+  icon: ReactNode;
   actionLabel?: string;
   onAction?: () => void;
 }
 
-export default function AdminPageHeader({ title, actionLabel, onAction }: AdminPageHeaderProps) {
+export default function AdminPageHeader({ title, icon, actionLabel, onAction }: AdminPageHeaderProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <p className="text-sm text-gray-500">
-          <span className="text-gray-400">Administration</span> / {title}
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold text-gray-900">{title}</h1>
+        <Breadcrumb
+          items={[
+            { label: "Administration", icon: AdminIcon },
+            { label: title, icon },
+          ]}
+        />
+        <h1 className="mt-2 text-2xl font-semibold text-gray-900">{title}</h1>
       </div>
       {actionLabel && onAction && (
         <button

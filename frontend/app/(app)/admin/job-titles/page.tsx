@@ -12,6 +12,12 @@ import { getErrorMessage } from "@/lib/api/errors";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import Modal from "@/components/admin/Modal";
 import StatusBadge from "@/components/admin/StatusBadge";
+import SortableHeader from "@/components/admin/SortableHeader";
+import SearchInput from "@/components/admin/SearchInput";
+import { useSortableData } from "@/lib/hooks/useSortableData";
+import { JobTitleIcon } from "@/components/layout/icons";
+
+type JobTitleSortKey = "title" | "active";
 
 const EMPTY_FORM = { title: "", active: true };
 
@@ -25,6 +31,22 @@ export default function JobTitlesAdminPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredJobTitles = jobTitles.filter((jobTitle) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    return jobTitle.title.toLowerCase().includes(query);
+  });
+
+  const { sorted: sortedJobTitles, sortKey, sortDir, toggleSort } = useSortableData<JobTitleAdmin, JobTitleSortKey>(
+    filteredJobTitles,
+    {
+      title: (jobTitle) => jobTitle.title.toLowerCase(),
+      active: (jobTitle) => (jobTitle.active ? 1 : 0),
+    },
+    "title",
+  );
 
   useEffect(() => {
     void load();
@@ -90,26 +112,30 @@ export default function JobTitlesAdminPage() {
 
   return (
     <div>
-      <AdminPageHeader title="Postes" actionLabel="Nouveau poste" onAction={openCreate} />
+      <AdminPageHeader title="Postes" icon={JobTitleIcon} actionLabel="Nouveau poste" onAction={openCreate} />
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-gray-100 bg-white">
+      <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un poste..." />
+
+      <div className="mt-4 overflow-hidden rounded-xl border border-gray-100 bg-white">
         {loading ? (
           <p className="px-6 py-8 text-center text-sm text-gray-500">Chargement...</p>
         ) : loadError ? (
           <p className="px-6 py-8 text-center text-sm text-red-600">{loadError}</p>
-        ) : jobTitles.length === 0 ? (
-          <p className="px-6 py-8 text-center text-sm text-gray-500">Aucun poste pour le moment.</p>
+        ) : sortedJobTitles.length === 0 ? (
+          <p className="px-6 py-8 text-center text-sm text-gray-500">
+            {jobTitles.length === 0 ? "Aucun poste pour le moment." : "Aucun poste ne correspond a la recherche."}
+          </p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
               <tr>
-                <th className="px-6 py-3 font-medium">Intitule</th>
-                <th className="px-6 py-3 font-medium">Statut</th>
+                <SortableHeader label="Intitule" sortKeyValue="title" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortableHeader label="Statut" sortKeyValue="active" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
                 <th className="px-6 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {jobTitles.map((jobTitle) => (
+              {sortedJobTitles.map((jobTitle) => (
                 <tr key={jobTitle.id}>
                   <td className="px-6 py-3 font-medium text-gray-900">{jobTitle.title}</td>
                   <td className="px-6 py-3">

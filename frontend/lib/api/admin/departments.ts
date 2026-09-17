@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api/client";
+import { SpringPage } from "@/lib/api/springPage";
 
 export interface DepartmentAdmin {
   id: string;
@@ -17,9 +18,9 @@ export interface DepartmentUpdatePayload extends DepartmentPayload {
   active: boolean;
 }
 
-export async function fetchDepartments(): Promise<DepartmentAdmin[]> {
-  const { data } = await apiClient.get<DepartmentAdmin[]>("/api/admin/departments");
-  return data;
+export async function fetchDepartments(size = 200): Promise<DepartmentAdmin[]> {
+  const { data } = await apiClient.get<SpringPage<DepartmentAdmin>>("/api/admin/departments", { params: { size } });
+  return data.content;
 }
 
 export async function createDepartment(payload: DepartmentPayload): Promise<DepartmentAdmin> {

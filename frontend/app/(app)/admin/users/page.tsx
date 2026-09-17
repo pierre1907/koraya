@@ -17,6 +17,12 @@ import { getErrorMessage } from "@/lib/api/errors";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import Modal from "@/components/admin/Modal";
 import StatusBadge from "@/components/admin/StatusBadge";
+import SortableHeader from "@/components/admin/SortableHeader";
+import SearchInput from "@/components/admin/SearchInput";
+import { useSortableData } from "@/lib/hooks/useSortableData";
+import { UsersIcon } from "@/components/layout/icons";
+
+type UserSortKey = "fullName" | "email" | "role" | "site" | "active";
 
 const ROLES: UserRole[] = ["ADMIN", "MANAGER", "AGENT", "USER"];
 
@@ -60,6 +66,28 @@ export default function UsersAdminPage() {
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredUsers = users.filter((user) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    return [user.fullName, user.email, user.role, user.siteName ?? ""]
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+  });
+
+  const { sorted: sortedUsers, sortKey, sortDir, toggleSort } = useSortableData<UserAdmin, UserSortKey>(
+    filteredUsers,
+    {
+      fullName: (user) => user.fullName.toLowerCase(),
+      email: (user) => user.email.toLowerCase(),
+      role: (user) => user.role,
+      site: (user) => (user.siteName ?? "").toLowerCase(),
+      active: (user) => (user.active ? 1 : 0),
+    },
+    "fullName",
+  );
 
   useEffect(() => {
     void load();
@@ -173,29 +201,33 @@ export default function UsersAdminPage() {
 
   return (
     <div>
-      <AdminPageHeader title="Utilisateurs" actionLabel="Nouvel utilisateur" onAction={openCreate} />
+      <AdminPageHeader title="Utilisateurs" icon={UsersIcon} actionLabel="Nouvel utilisateur" onAction={openCreate} />
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-gray-100 bg-white">
+      <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un utilisateur..." />
+
+      <div className="mt-4 overflow-hidden rounded-xl border border-gray-100 bg-white">
         {loading ? (
           <p className="px-6 py-8 text-center text-sm text-gray-500">Chargement...</p>
         ) : loadError ? (
           <p className="px-6 py-8 text-center text-sm text-red-600">{loadError}</p>
-        ) : users.length === 0 ? (
-          <p className="px-6 py-8 text-center text-sm text-gray-500">Aucun utilisateur pour le moment.</p>
+        ) : sortedUsers.length === 0 ? (
+          <p className="px-6 py-8 text-center text-sm text-gray-500">
+            {users.length === 0 ? "Aucun utilisateur pour le moment." : "Aucun utilisateur ne correspond a la recherche."}
+          </p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
               <tr>
-                <th className="px-6 py-3 font-medium">Nom</th>
-                <th className="px-6 py-3 font-medium">Email</th>
-                <th className="px-6 py-3 font-medium">Role</th>
-                <th className="px-6 py-3 font-medium">Site</th>
-                <th className="px-6 py-3 font-medium">Statut</th>
+                <SortableHeader label="Nom" sortKeyValue="fullName" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortableHeader label="Email" sortKeyValue="email" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortableHeader label="Role" sortKeyValue="role" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortableHeader label="Site" sortKeyValue="site" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortableHeader label="Statut" sortKeyValue="active" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
                 <th className="px-6 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {users.map((user) => (
+              {sortedUsers.map((user) => (
                 <tr key={user.id}>
                   <td className="px-6 py-3 font-medium text-gray-900">{user.fullName}</td>
                   <td className="px-6 py-3 text-gray-500">{user.email}</td>

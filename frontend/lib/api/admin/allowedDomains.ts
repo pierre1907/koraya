@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api/client";
+import { SpringPage } from "@/lib/api/springPage";
 
 export interface AllowedDomainAdmin {
   id: string;
@@ -11,9 +12,11 @@ export interface AllowedDomainPayload {
   domain: string;
 }
 
-export async function fetchAllowedDomains(): Promise<AllowedDomainAdmin[]> {
-  const { data } = await apiClient.get<AllowedDomainAdmin[]>("/api/admin/allowed-domains");
-  return data;
+export async function fetchAllowedDomains(size = 200): Promise<AllowedDomainAdmin[]> {
+  const { data } = await apiClient.get<SpringPage<AllowedDomainAdmin>>("/api/admin/allowed-domains", {
+    params: { size },
+  });
+  return data.content;
 }
 
 export async function createAllowedDomain(payload: AllowedDomainPayload): Promise<AllowedDomainAdmin> {

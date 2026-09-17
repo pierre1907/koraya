@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api/client";
+import { SpringPage } from "@/lib/api/springPage";
 
 export type UserRole = "ADMIN" | "MANAGER" | "AGENT" | "USER";
 
@@ -41,9 +42,9 @@ export interface UserUpdatePayload {
   active: boolean;
 }
 
-export async function fetchUsers(): Promise<UserAdmin[]> {
-  const { data } = await apiClient.get<UserAdmin[]>("/api/admin/users");
-  return data;
+export async function fetchUsers(size = 200): Promise<UserAdmin[]> {
+  const { data } = await apiClient.get<SpringPage<UserAdmin>>("/api/admin/users", { params: { size } });
+  return data.content;
 }
 
 export async function createUser(payload: UserCreatePayload): Promise<UserAdmin> {

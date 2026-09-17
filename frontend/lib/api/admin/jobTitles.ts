@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api/client";
+import { SpringPage } from "@/lib/api/springPage";
 
 export interface JobTitleAdmin {
   id: string;
@@ -15,9 +16,9 @@ export interface JobTitleUpdatePayload extends JobTitlePayload {
   active: boolean;
 }
 
-export async function fetchJobTitles(): Promise<JobTitleAdmin[]> {
-  const { data } = await apiClient.get<JobTitleAdmin[]>("/api/admin/job-titles");
-  return data;
+export async function fetchJobTitles(size = 200): Promise<JobTitleAdmin[]> {
+  const { data } = await apiClient.get<SpringPage<JobTitleAdmin>>("/api/admin/job-titles", { params: { size } });
+  return data.content;
 }
 
 export async function createJobTitle(payload: JobTitlePayload): Promise<JobTitleAdmin> {

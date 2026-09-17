@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api/client";
+import { SpringPage } from "@/lib/api/springPage";
 
 export interface SiteAdmin {
   id: string;
@@ -16,9 +17,9 @@ export interface SiteUpdatePayload extends SitePayload {
   active: boolean;
 }
 
-export async function fetchSites(): Promise<SiteAdmin[]> {
-  const { data } = await apiClient.get<SiteAdmin[]>("/api/admin/sites");
-  return data;
+export async function fetchSites(size = 200): Promise<SiteAdmin[]> {
+  const { data } = await apiClient.get<SpringPage<SiteAdmin>>("/api/admin/sites", { params: { size } });
+  return data.content;
 }
 
 export async function createSite(payload: SitePayload): Promise<SiteAdmin> {

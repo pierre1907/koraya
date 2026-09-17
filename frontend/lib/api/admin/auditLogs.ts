@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api/client";
+import { SpringPage } from "@/lib/api/springPage";
 
 export interface AuditLogEntry {
   id: string;
@@ -10,7 +11,14 @@ export interface AuditLogEntry {
   createdAt: string;
 }
 
-export async function fetchAuditLogs(): Promise<AuditLogEntry[]> {
-  const { data } = await apiClient.get<AuditLogEntry[]>("/api/admin/audit-logs");
-  return data;
+/**
+ * Le backend renvoie une Page Spring paginee ({content, totalElements, ...}),
+ * pas un tableau brut. `size` fixe la fenetre recuperee pour le tri/filtre
+ * cote client (pas de pagination UI pour l'instant).
+ */
+export async function fetchAuditLogs(size = 200): Promise<AuditLogEntry[]> {
+  const { data } = await apiClient.get<SpringPage<AuditLogEntry>>("/api/admin/audit-logs", {
+    params: { size, sort: "createdAt,desc" },
+  });
+  return data.content;
 }
