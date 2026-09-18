@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import { AdminIcon } from "@/components/layout/icons";
+import { PlusIcon } from "@/components/admin/icons";
 
 interface AdminPageHeaderProps {
   title: string;
@@ -25,8 +26,9 @@ export default function AdminPageHeader({ title, icon, actionLabel, onAction }: 
         <button
           type="button"
           onClick={onAction}
-          className="rounded-full bg-koraya-navy px-5 py-2 text-sm font-medium text-white transition hover:opacity-90"
+          className="flex items-center gap-1.5 rounded-full bg-koraya-navy px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-koraya-navy/90 hover:shadow-md active:scale-[0.98]"
         >
+          {PlusIcon}
           {actionLabel}
         </button>
       )}

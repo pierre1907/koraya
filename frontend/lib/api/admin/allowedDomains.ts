@@ -28,3 +28,7 @@ export async function setAllowedDomainStatus(id: string, active: boolean): Promi
   const { data } = await apiClient.patch<AllowedDomainAdmin>(`/api/admin/allowed-domains/${id}/status`, { active });
   return data;
 }
+
+export async function hardDeleteAllowedDomain(id: string): Promise<void> {
+  await apiClient.delete(`/api/admin/allowed-domains/${id}/hard`);
+}

@@ -34,3 +34,7 @@ export async function updateJobTitle(id: string, payload: JobTitleUpdatePayload)
 export async function deactivateJobTitle(id: string): Promise<void> {
   await apiClient.delete(`/api/admin/job-titles/${id}`);
 }
+
+export async function hardDeleteJobTitle(id: string): Promise<void> {
+  await apiClient.delete(`/api/admin/job-titles/${id}/hard`);
+}

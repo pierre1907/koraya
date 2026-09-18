@@ -6,6 +6,7 @@ import { getToken, getCurrentUser, CurrentUser } from "@/lib/auth/token";
 import AppSidebar from "@/components/layout/AppSidebar";
 import AppTopbar from "@/components/layout/AppTopbar";
 import { NavRole } from "@/components/layout/navConfig";
+import { ToastProvider } from "@/components/layout/ToastProvider";
 
 const SIDEBAR_COLLAPSED_KEY = "koraya_sidebar_collapsed";
 
@@ -47,12 +48,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <AppSidebar collapsed={collapsed} role={(user?.role as NavRole) ?? null} />
-      <div className="flex min-h-screen flex-1 flex-col">
-        <AppTopbar collapsed={collapsed} onToggleCollapsed={toggleCollapsed} user={user} />
-        <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>
+    <ToastProvider>
+      <div className="flex min-h-screen bg-gray-50">
+        <AppSidebar collapsed={collapsed} role={(user?.role as NavRole) ?? null} />
+        <div className="flex min-h-screen flex-1 flex-col">
+          <AppTopbar collapsed={collapsed} onToggleCollapsed={toggleCollapsed} user={user} />
+          <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }

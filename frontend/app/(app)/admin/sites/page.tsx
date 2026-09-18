@@ -6,16 +6,24 @@ import {
   createSite,
   deactivateSite,
   fetchSites,
+  hardDeleteSite,
   updateSite,
 } from "@/lib/api/admin/sites";
 import { getErrorMessage } from "@/lib/api/errors";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import Modal from "@/components/admin/Modal";
+import DetailModal from "@/components/admin/DetailModal";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import StatusBadge from "@/components/admin/StatusBadge";
 import SortableHeader from "@/components/admin/SortableHeader";
 import SearchInput from "@/components/admin/SearchInput";
+import IconButton from "@/components/admin/IconButton";
+import Pagination from "@/components/admin/Pagination";
 import { useSortableData } from "@/lib/hooks/useSortableData";
+import { usePagination } from "@/lib/hooks/usePagination";
 import { SiteIcon } from "@/components/layout/icons";
+import { EyeIcon, PencilIcon, PowerIcon, TrashIcon } from "@/components/admin/icons";
+import { useToast } from "@/components/layout/ToastProvider";
 
 type SiteSortKey = "name" | "address" | "active";
 
@@ -28,6 +36,7 @@ interface SiteFormState {
 const EMPTY_FORM: SiteFormState = { name: "", address: "", active: true };
 
 export default function SitesAdminPage() {
+  const { showToast } = useToast();
   const [sites, setSites] = useState<SiteAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -35,9 +44,11 @@ export default function SitesAdminPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<SiteFormState>(EMPTY_FORM);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [viewingSite, setViewingSite] = useState<SiteAdmin | null>(null);
+  const [deletingSite, setDeletingSite] = useState<SiteAdmin | null>(null);
+  const [togglingSite, setTogglingSite] = useState<SiteAdmin | null>(null);
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
 
   const filteredSites = sites.filter((site) => {
     const query = search.trim().toLowerCase();
@@ -54,6 +65,9 @@ export default function SitesAdminPage() {
     },
     "name",
   );
+
+  const { paginated: paginatedSites, page, setPage, pageSize, changePageSize, totalPages, totalItems } =
+    usePagination(sortedSites);
 
   useEffect(() => {
     void load();
@@ -74,47 +88,60 @@ export default function SitesAdminPage() {
   function openCreate() {
     setEditingId(null);
     setForm(EMPTY_FORM);
-    setFormError(null);
     setModalOpen(true);
   }
 
   function openEdit(site: SiteAdmin) {
     setEditingId(site.id);
     setForm({ name: site.name, address: site.address ?? "", active: site.active });
-    setFormError(null);
     setModalOpen(true);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    setFormError(null);
+    if (editingId) {
+      setConfirmingSubmit(true);
+      return;
+    }
     try {
-      if (editingId) {
-        await updateSite(editingId, { name: form.name, address: form.address, active: form.active });
-      } else {
-        await createSite({ name: form.name, address: form.address });
-      }
-      setModalOpen(false);
-      await load();
+      await performSave();
     } catch (error) {
-      setFormError(getErrorMessage(error, "Impossible d'enregistrer le site."));
-    } finally {
-      setSaving(false);
+      showToast("error", getErrorMessage(error, "Impossible de creer le site."));
     }
   }
 
-  async function handleToggleActive(site: SiteAdmin) {
-    try {
-      if (site.active) {
-        await deactivateSite(site.id);
-      } else {
-        await updateSite(site.id, { name: site.name, address: site.address ?? "", active: true });
-      }
-      await load();
-    } catch (error) {
-      setLoadError(getErrorMessage(error, "Impossible de mettre a jour le site."));
+  async function performSave() {
+    if (editingId) {
+      await updateSite(editingId, { name: form.name, address: form.address, active: form.active });
+      showToast("success", `Site "${form.name}" modifie.`);
+    } else {
+      await createSite({ name: form.name, address: form.address });
+      showToast("success", `Site "${form.name}" cree.`);
     }
+    setConfirmingSubmit(false);
+    setModalOpen(false);
+    await load();
+  }
+
+  async function performToggle() {
+    if (!togglingSite) return;
+    if (togglingSite.active) {
+      await deactivateSite(togglingSite.id);
+      showToast("success", `Site "${togglingSite.name}" desactive.`);
+    } else {
+      await updateSite(togglingSite.id, { name: togglingSite.name, address: togglingSite.address ?? "", active: true });
+      showToast("success", `Site "${togglingSite.name}" reactive.`);
+    }
+    setTogglingSite(null);
+    await load();
+  }
+
+  async function performHardDelete() {
+    if (!deletingSite) return;
+    await hardDeleteSite(deletingSite.id);
+    showToast("success", `Site "${deletingSite.name}" supprime definitivement.`);
+    setDeletingSite(null);
+    await load();
   }
 
   return (
@@ -134,7 +161,7 @@ export default function SitesAdminPage() {
           </p>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <thead className="border-b border-gray-100 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
               <tr>
                 <SortableHeader label="Nom" sortKeyValue="name" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
                 <SortableHeader label="Adresse" sortKeyValue="address" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
@@ -143,35 +170,45 @@ export default function SitesAdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {sortedSites.map((site) => (
-                <tr key={site.id}>
-                  <td className="px-6 py-3 font-medium text-gray-900">{site.name}</td>
-                  <td className="px-6 py-3 text-gray-500">{site.address || "—"}</td>
-                  <td className="px-6 py-3">
+              {paginatedSites.map((site) => (
+                <tr key={site.id} className="transition-colors hover:bg-gray-50/70">
+                  <td className="px-6 py-3.5 font-medium text-gray-900">{site.name}</td>
+                  <td className="px-6 py-3.5 text-gray-500">{site.address || "—"}</td>
+                  <td className="px-6 py-3.5">
                     <StatusBadge active={site.active} />
                   </td>
-                  <td className="px-6 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(site)}
-                        className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(site)}
-                        className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                      >
-                        {site.active ? "Desactiver" : "Reactiver"}
-                      </button>
+                  <td className="px-6 py-3.5">
+                    <div className="flex justify-end gap-1">
+                      <IconButton icon={EyeIcon} label="Voir le detail" onClick={() => setViewingSite(site)} />
+                      <IconButton icon={PencilIcon} label="Modifier" variant="edit" onClick={() => openEdit(site)} />
+                      <IconButton
+                        icon={PowerIcon}
+                        label={site.active ? "Desactiver" : "Reactiver"}
+                        variant={site.active ? "warning" : "success"}
+                        onClick={() => setTogglingSite(site)}
+                      />
+                      <IconButton
+                        icon={TrashIcon}
+                        label="Supprimer definitivement"
+                        variant="danger"
+                        onClick={() => setDeletingSite(site)}
+                      />
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        )}
+        {!loading && !loadError && totalItems > 0 && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={setPage}
+            onPageSizeChange={changePageSize}
+          />
         )}
       </div>
 
@@ -209,10 +246,6 @@ export default function SitesAdminPage() {
             </label>
           )}
 
-          {formError && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{formError}</p>
-          )}
-
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -223,14 +256,57 @@ export default function SitesAdminPage() {
             </button>
             <button
               type="submit"
-              disabled={saving}
-              className="rounded-md bg-koraya-navy px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+              className="rounded-md bg-koraya-navy px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
             >
-              {saving ? "Enregistrement..." : "Enregistrer"}
+              Enregistrer
             </button>
           </div>
         </form>
       </Modal>
+
+      <DetailModal
+        open={viewingSite !== null}
+        title={viewingSite?.name ?? ""}
+        onClose={() => setViewingSite(null)}
+        fields={[
+          { label: "Nom", value: viewingSite?.name },
+          { label: "Adresse", value: viewingSite?.address || "—" },
+          { label: "Statut", value: viewingSite ? <StatusBadge active={viewingSite.active} /> : null },
+        ]}
+      />
+
+      <ConfirmDialog
+        open={confirmingSubmit}
+        title="Confirmer la modification"
+        description={`Enregistrer les modifications du site "${form.name}" ?`}
+        confirmLabel="Enregistrer"
+        tone="primary"
+        errorFallback="Impossible d'enregistrer le site."
+        onConfirm={performSave}
+        onClose={() => setConfirmingSubmit(false)}
+      />
+
+      <ConfirmDialog
+        open={togglingSite !== null}
+        title={togglingSite?.active ? "Desactiver ce site ?" : "Reactiver ce site ?"}
+        description={`"${togglingSite?.name}" sera ${togglingSite?.active ? "desactive" : "reactive"}.`}
+        confirmLabel={togglingSite?.active ? "Desactiver" : "Reactiver"}
+        tone={togglingSite?.active ? "warning" : "success"}
+        errorFallback="Impossible de mettre a jour le site."
+        onConfirm={performToggle}
+        onClose={() => setTogglingSite(null)}
+      />
+
+      <ConfirmDialog
+        open={deletingSite !== null}
+        title="Supprimer ce site ?"
+        description={`Cette action est irreversible. "${deletingSite?.name}" sera definitivement supprime.`}
+        confirmLabel="Supprimer definitivement"
+        tone="danger"
+        errorFallback="Impossible de supprimer le site."
+        onConfirm={performHardDelete}
+        onClose={() => setDeletingSite(null)}
+      />
     </div>
   );
 }

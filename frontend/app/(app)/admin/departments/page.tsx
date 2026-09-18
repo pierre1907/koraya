@@ -6,17 +6,25 @@ import {
   createDepartment,
   deactivateDepartment,
   fetchDepartments,
+  hardDeleteDepartment,
   updateDepartment,
 } from "@/lib/api/admin/departments";
 import { SiteAdmin, fetchSites } from "@/lib/api/admin/sites";
 import { getErrorMessage } from "@/lib/api/errors";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import Modal from "@/components/admin/Modal";
+import DetailModal from "@/components/admin/DetailModal";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import StatusBadge from "@/components/admin/StatusBadge";
 import SortableHeader from "@/components/admin/SortableHeader";
 import SearchInput from "@/components/admin/SearchInput";
+import IconButton from "@/components/admin/IconButton";
+import Pagination from "@/components/admin/Pagination";
 import { useSortableData } from "@/lib/hooks/useSortableData";
+import { usePagination } from "@/lib/hooks/usePagination";
 import { DepartmentIcon } from "@/components/layout/icons";
+import { EyeIcon, PencilIcon, PowerIcon, TrashIcon } from "@/components/admin/icons";
+import { useToast } from "@/components/layout/ToastProvider";
 
 type DepartmentSortKey = "name" | "site" | "active";
 
@@ -29,6 +37,7 @@ interface DepartmentFormState {
 const EMPTY_FORM: DepartmentFormState = { name: "", siteId: "", active: true };
 
 export default function DepartmentsAdminPage() {
+  const { showToast } = useToast();
   const [departments, setDepartments] = useState<DepartmentAdmin[]>([]);
   const [sites, setSites] = useState<SiteAdmin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,9 +46,11 @@ export default function DepartmentsAdminPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<DepartmentFormState>(EMPTY_FORM);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [viewingDepartment, setViewingDepartment] = useState<DepartmentAdmin | null>(null);
+  const [deletingDepartment, setDeletingDepartment] = useState<DepartmentAdmin | null>(null);
+  const [togglingDepartment, setTogglingDepartment] = useState<DepartmentAdmin | null>(null);
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
 
   const filteredDepartments = departments.filter((department) => {
     const query = search.trim().toLowerCase();
@@ -62,6 +73,16 @@ export default function DepartmentsAdminPage() {
     "name",
   );
 
+  const {
+    paginated: paginatedDepartments,
+    page,
+    setPage,
+    pageSize,
+    changePageSize,
+    totalPages,
+    totalItems,
+  } = usePagination(sortedDepartments);
+
   useEffect(() => {
     void load();
   }, []);
@@ -83,52 +104,65 @@ export default function DepartmentsAdminPage() {
   function openCreate() {
     setEditingId(null);
     setForm(EMPTY_FORM);
-    setFormError(null);
     setModalOpen(true);
   }
 
   function openEdit(department: DepartmentAdmin) {
     setEditingId(department.id);
     setForm({ name: department.name, siteId: department.siteId ?? "", active: department.active });
-    setFormError(null);
     setModalOpen(true);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    setFormError(null);
+    if (editingId) {
+      setConfirmingSubmit(true);
+      return;
+    }
     try {
-      const siteId = form.siteId || null;
-      if (editingId) {
-        await updateDepartment(editingId, { name: form.name, siteId, active: form.active });
-      } else {
-        await createDepartment({ name: form.name, siteId });
-      }
-      setModalOpen(false);
-      await load();
+      await performSave();
     } catch (error) {
-      setFormError(getErrorMessage(error, "Impossible d'enregistrer le departement."));
-    } finally {
-      setSaving(false);
+      showToast("error", getErrorMessage(error, "Impossible de creer le departement."));
     }
   }
 
-  async function handleToggleActive(department: DepartmentAdmin) {
-    try {
-      if (department.active) {
-        await deactivateDepartment(department.id);
-      } else {
-        await updateDepartment(department.id, {
-          name: department.name,
-          siteId: department.siteId,
-          active: true,
-        });
-      }
-      await load();
-    } catch (error) {
-      setLoadError(getErrorMessage(error, "Impossible de mettre a jour le departement."));
+  async function performSave() {
+    const siteId = form.siteId || null;
+    if (editingId) {
+      await updateDepartment(editingId, { name: form.name, siteId, active: form.active });
+      showToast("success", `Departement "${form.name}" modifie.`);
+    } else {
+      await createDepartment({ name: form.name, siteId });
+      showToast("success", `Departement "${form.name}" cree.`);
     }
+    setConfirmingSubmit(false);
+    setModalOpen(false);
+    await load();
+  }
+
+  async function performToggle() {
+    if (!togglingDepartment) return;
+    if (togglingDepartment.active) {
+      await deactivateDepartment(togglingDepartment.id);
+      showToast("success", `Departement "${togglingDepartment.name}" desactive.`);
+    } else {
+      await updateDepartment(togglingDepartment.id, {
+        name: togglingDepartment.name,
+        siteId: togglingDepartment.siteId,
+        active: true,
+      });
+      showToast("success", `Departement "${togglingDepartment.name}" reactive.`);
+    }
+    setTogglingDepartment(null);
+    await load();
+  }
+
+  async function performHardDelete() {
+    if (!deletingDepartment) return;
+    await hardDeleteDepartment(deletingDepartment.id);
+    showToast("success", `Departement "${deletingDepartment.name}" supprime definitivement.`);
+    setDeletingDepartment(null);
+    await load();
   }
 
   return (
@@ -148,7 +182,7 @@ export default function DepartmentsAdminPage() {
           </p>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <thead className="border-b border-gray-100 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
               <tr>
                 <SortableHeader label="Nom" sortKeyValue="name" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
                 <SortableHeader label="Site" sortKeyValue="site" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
@@ -157,35 +191,45 @@ export default function DepartmentsAdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {sortedDepartments.map((department) => (
-                <tr key={department.id}>
-                  <td className="px-6 py-3 font-medium text-gray-900">{department.name}</td>
-                  <td className="px-6 py-3 text-gray-500">{department.siteName || "Transverse"}</td>
-                  <td className="px-6 py-3">
+              {paginatedDepartments.map((department) => (
+                <tr key={department.id} className="transition-colors hover:bg-gray-50/70">
+                  <td className="px-6 py-3.5 font-medium text-gray-900">{department.name}</td>
+                  <td className="px-6 py-3.5 text-gray-500">{department.siteName || "Transverse"}</td>
+                  <td className="px-6 py-3.5">
                     <StatusBadge active={department.active} />
                   </td>
-                  <td className="px-6 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(department)}
-                        className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(department)}
-                        className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                      >
-                        {department.active ? "Desactiver" : "Reactiver"}
-                      </button>
+                  <td className="px-6 py-3.5">
+                    <div className="flex justify-end gap-1">
+                      <IconButton icon={EyeIcon} label="Voir le detail" onClick={() => setViewingDepartment(department)} />
+                      <IconButton icon={PencilIcon} label="Modifier" variant="edit" onClick={() => openEdit(department)} />
+                      <IconButton
+                        icon={PowerIcon}
+                        label={department.active ? "Desactiver" : "Reactiver"}
+                        variant={department.active ? "warning" : "success"}
+                        onClick={() => setTogglingDepartment(department)}
+                      />
+                      <IconButton
+                        icon={TrashIcon}
+                        label="Supprimer definitivement"
+                        variant="danger"
+                        onClick={() => setDeletingDepartment(department)}
+                      />
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        )}
+        {!loading && !loadError && totalItems > 0 && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={setPage}
+            onPageSizeChange={changePageSize}
+          />
         )}
       </div>
 
@@ -234,10 +278,6 @@ export default function DepartmentsAdminPage() {
             </label>
           )}
 
-          {formError && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{formError}</p>
-          )}
-
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -248,14 +288,57 @@ export default function DepartmentsAdminPage() {
             </button>
             <button
               type="submit"
-              disabled={saving}
-              className="rounded-md bg-koraya-navy px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+              className="rounded-md bg-koraya-navy px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
             >
-              {saving ? "Enregistrement..." : "Enregistrer"}
+              Enregistrer
             </button>
           </div>
         </form>
       </Modal>
+
+      <DetailModal
+        open={viewingDepartment !== null}
+        title={viewingDepartment?.name ?? ""}
+        onClose={() => setViewingDepartment(null)}
+        fields={[
+          { label: "Nom", value: viewingDepartment?.name },
+          { label: "Site", value: viewingDepartment?.siteName || "Transverse" },
+          { label: "Statut", value: viewingDepartment ? <StatusBadge active={viewingDepartment.active} /> : null },
+        ]}
+      />
+
+      <ConfirmDialog
+        open={confirmingSubmit}
+        title="Confirmer la modification"
+        description={`Enregistrer les modifications du departement "${form.name}" ?`}
+        confirmLabel="Enregistrer"
+        tone="primary"
+        errorFallback="Impossible d'enregistrer le departement."
+        onConfirm={performSave}
+        onClose={() => setConfirmingSubmit(false)}
+      />
+
+      <ConfirmDialog
+        open={togglingDepartment !== null}
+        title={togglingDepartment?.active ? "Desactiver ce departement ?" : "Reactiver ce departement ?"}
+        description={`"${togglingDepartment?.name}" sera ${togglingDepartment?.active ? "desactive" : "reactive"}.`}
+        confirmLabel={togglingDepartment?.active ? "Desactiver" : "Reactiver"}
+        tone={togglingDepartment?.active ? "warning" : "success"}
+        errorFallback="Impossible de mettre a jour le departement."
+        onConfirm={performToggle}
+        onClose={() => setTogglingDepartment(null)}
+      />
+
+      <ConfirmDialog
+        open={deletingDepartment !== null}
+        title="Supprimer ce departement ?"
+        description={`Cette action est irreversible. "${deletingDepartment?.name}" sera definitivement supprime.`}
+        confirmLabel="Supprimer definitivement"
+        tone="danger"
+        errorFallback="Impossible de supprimer le departement."
+        onConfirm={performHardDelete}
+        onClose={() => setDeletingDepartment(null)}
+      />
     </div>
   );
 }

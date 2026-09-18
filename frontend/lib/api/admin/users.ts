@@ -60,3 +60,7 @@ export async function updateUser(id: string, payload: UserUpdatePayload): Promis
 export async function deactivateUser(id: string): Promise<void> {
   await apiClient.delete(`/api/admin/users/${id}`);
 }
+
+export async function hardDeleteUser(id: string): Promise<void> {
+  await apiClient.delete(`/api/admin/users/${id}/hard`);
+}

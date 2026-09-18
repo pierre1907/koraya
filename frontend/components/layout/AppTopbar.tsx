@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CurrentUser, clearToken } from "@/lib/auth/token";
+import { CurrentUser } from "@/lib/auth/token";
+import { logout } from "@/lib/auth/authService";
 
 interface AppTopbarProps {
   collapsed: boolean;
@@ -34,8 +35,8 @@ export default function AppTopbar({ collapsed, onToggleCollapsed, user }: AppTop
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function handleLogout() {
-    clearToken();
+  async function handleLogout() {
+    await logout();
     router.push("/login");
   }
 

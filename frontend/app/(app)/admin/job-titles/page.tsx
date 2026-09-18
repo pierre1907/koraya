@@ -6,22 +6,31 @@ import {
   createJobTitle,
   deactivateJobTitle,
   fetchJobTitles,
+  hardDeleteJobTitle,
   updateJobTitle,
 } from "@/lib/api/admin/jobTitles";
 import { getErrorMessage } from "@/lib/api/errors";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import Modal from "@/components/admin/Modal";
+import DetailModal from "@/components/admin/DetailModal";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import StatusBadge from "@/components/admin/StatusBadge";
 import SortableHeader from "@/components/admin/SortableHeader";
 import SearchInput from "@/components/admin/SearchInput";
+import IconButton from "@/components/admin/IconButton";
+import Pagination from "@/components/admin/Pagination";
 import { useSortableData } from "@/lib/hooks/useSortableData";
+import { usePagination } from "@/lib/hooks/usePagination";
 import { JobTitleIcon } from "@/components/layout/icons";
+import { EyeIcon, PencilIcon, PowerIcon, TrashIcon } from "@/components/admin/icons";
+import { useToast } from "@/components/layout/ToastProvider";
 
 type JobTitleSortKey = "title" | "active";
 
 const EMPTY_FORM = { title: "", active: true };
 
 export default function JobTitlesAdminPage() {
+  const { showToast } = useToast();
   const [jobTitles, setJobTitles] = useState<JobTitleAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -29,9 +38,11 @@ export default function JobTitlesAdminPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [viewingJobTitle, setViewingJobTitle] = useState<JobTitleAdmin | null>(null);
+  const [deletingJobTitle, setDeletingJobTitle] = useState<JobTitleAdmin | null>(null);
+  const [togglingJobTitle, setTogglingJobTitle] = useState<JobTitleAdmin | null>(null);
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
 
   const filteredJobTitles = jobTitles.filter((jobTitle) => {
     const query = search.trim().toLowerCase();
@@ -47,6 +58,16 @@ export default function JobTitlesAdminPage() {
     },
     "title",
   );
+
+  const {
+    paginated: paginatedJobTitles,
+    page,
+    setPage,
+    pageSize,
+    changePageSize,
+    totalPages,
+    totalItems,
+  } = usePagination(sortedJobTitles);
 
   useEffect(() => {
     void load();
@@ -67,47 +88,60 @@ export default function JobTitlesAdminPage() {
   function openCreate() {
     setEditingId(null);
     setForm(EMPTY_FORM);
-    setFormError(null);
     setModalOpen(true);
   }
 
   function openEdit(jobTitle: JobTitleAdmin) {
     setEditingId(jobTitle.id);
     setForm({ title: jobTitle.title, active: jobTitle.active });
-    setFormError(null);
     setModalOpen(true);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    setFormError(null);
+    if (editingId) {
+      setConfirmingSubmit(true);
+      return;
+    }
     try {
-      if (editingId) {
-        await updateJobTitle(editingId, { title: form.title, active: form.active });
-      } else {
-        await createJobTitle({ title: form.title });
-      }
-      setModalOpen(false);
-      await load();
+      await performSave();
     } catch (error) {
-      setFormError(getErrorMessage(error, "Impossible d'enregistrer le poste."));
-    } finally {
-      setSaving(false);
+      showToast("error", getErrorMessage(error, "Impossible de creer le poste."));
     }
   }
 
-  async function handleToggleActive(jobTitle: JobTitleAdmin) {
-    try {
-      if (jobTitle.active) {
-        await deactivateJobTitle(jobTitle.id);
-      } else {
-        await updateJobTitle(jobTitle.id, { title: jobTitle.title, active: true });
-      }
-      await load();
-    } catch (error) {
-      setLoadError(getErrorMessage(error, "Impossible de mettre a jour le poste."));
+  async function performSave() {
+    if (editingId) {
+      await updateJobTitle(editingId, { title: form.title, active: form.active });
+      showToast("success", `Poste "${form.title}" modifie.`);
+    } else {
+      await createJobTitle({ title: form.title });
+      showToast("success", `Poste "${form.title}" cree.`);
     }
+    setConfirmingSubmit(false);
+    setModalOpen(false);
+    await load();
+  }
+
+  async function performToggle() {
+    if (!togglingJobTitle) return;
+    if (togglingJobTitle.active) {
+      await deactivateJobTitle(togglingJobTitle.id);
+      showToast("success", `Poste "${togglingJobTitle.title}" desactive.`);
+    } else {
+      await updateJobTitle(togglingJobTitle.id, { title: togglingJobTitle.title, active: true });
+      showToast("success", `Poste "${togglingJobTitle.title}" reactive.`);
+    }
+    setTogglingJobTitle(null);
+    await load();
+  }
+
+  async function performHardDelete() {
+    if (!deletingJobTitle) return;
+    await hardDeleteJobTitle(deletingJobTitle.id);
+    showToast("success", `Poste "${deletingJobTitle.title}" supprime definitivement.`);
+    setDeletingJobTitle(null);
+    await load();
   }
 
   return (
@@ -127,7 +161,7 @@ export default function JobTitlesAdminPage() {
           </p>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <thead className="border-b border-gray-100 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
               <tr>
                 <SortableHeader label="Intitule" sortKeyValue="title" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
                 <SortableHeader label="Statut" sortKeyValue="active" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
@@ -135,34 +169,44 @@ export default function JobTitlesAdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {sortedJobTitles.map((jobTitle) => (
-                <tr key={jobTitle.id}>
-                  <td className="px-6 py-3 font-medium text-gray-900">{jobTitle.title}</td>
-                  <td className="px-6 py-3">
+              {paginatedJobTitles.map((jobTitle) => (
+                <tr key={jobTitle.id} className="transition-colors hover:bg-gray-50/70">
+                  <td className="px-6 py-3.5 font-medium text-gray-900">{jobTitle.title}</td>
+                  <td className="px-6 py-3.5">
                     <StatusBadge active={jobTitle.active} />
                   </td>
-                  <td className="px-6 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(jobTitle)}
-                        className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(jobTitle)}
-                        className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                      >
-                        {jobTitle.active ? "Desactiver" : "Reactiver"}
-                      </button>
+                  <td className="px-6 py-3.5">
+                    <div className="flex justify-end gap-1">
+                      <IconButton icon={EyeIcon} label="Voir le detail" onClick={() => setViewingJobTitle(jobTitle)} />
+                      <IconButton icon={PencilIcon} label="Modifier" variant="edit" onClick={() => openEdit(jobTitle)} />
+                      <IconButton
+                        icon={PowerIcon}
+                        label={jobTitle.active ? "Desactiver" : "Reactiver"}
+                        variant={jobTitle.active ? "warning" : "success"}
+                        onClick={() => setTogglingJobTitle(jobTitle)}
+                      />
+                      <IconButton
+                        icon={TrashIcon}
+                        label="Supprimer definitivement"
+                        variant="danger"
+                        onClick={() => setDeletingJobTitle(jobTitle)}
+                      />
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        )}
+        {!loading && !loadError && totalItems > 0 && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={setPage}
+            onPageSizeChange={changePageSize}
+          />
         )}
       </div>
 
@@ -191,10 +235,6 @@ export default function JobTitlesAdminPage() {
             </label>
           )}
 
-          {formError && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{formError}</p>
-          )}
-
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -205,14 +245,56 @@ export default function JobTitlesAdminPage() {
             </button>
             <button
               type="submit"
-              disabled={saving}
-              className="rounded-md bg-koraya-navy px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+              className="rounded-md bg-koraya-navy px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
             >
-              {saving ? "Enregistrement..." : "Enregistrer"}
+              Enregistrer
             </button>
           </div>
         </form>
       </Modal>
+
+      <DetailModal
+        open={viewingJobTitle !== null}
+        title={viewingJobTitle?.title ?? ""}
+        onClose={() => setViewingJobTitle(null)}
+        fields={[
+          { label: "Intitule", value: viewingJobTitle?.title },
+          { label: "Statut", value: viewingJobTitle ? <StatusBadge active={viewingJobTitle.active} /> : null },
+        ]}
+      />
+
+      <ConfirmDialog
+        open={confirmingSubmit}
+        title="Confirmer la modification"
+        description={`Enregistrer les modifications du poste "${form.title}" ?`}
+        confirmLabel="Enregistrer"
+        tone="primary"
+        errorFallback="Impossible d'enregistrer le poste."
+        onConfirm={performSave}
+        onClose={() => setConfirmingSubmit(false)}
+      />
+
+      <ConfirmDialog
+        open={togglingJobTitle !== null}
+        title={togglingJobTitle?.active ? "Desactiver ce poste ?" : "Reactiver ce poste ?"}
+        description={`"${togglingJobTitle?.title}" sera ${togglingJobTitle?.active ? "desactive" : "reactive"}.`}
+        confirmLabel={togglingJobTitle?.active ? "Desactiver" : "Reactiver"}
+        tone={togglingJobTitle?.active ? "warning" : "success"}
+        errorFallback="Impossible de mettre a jour le poste."
+        onConfirm={performToggle}
+        onClose={() => setTogglingJobTitle(null)}
+      />
+
+      <ConfirmDialog
+        open={deletingJobTitle !== null}
+        title="Supprimer ce poste ?"
+        description={`Cette action est irreversible. "${deletingJobTitle?.title}" sera definitivement supprime.`}
+        confirmLabel="Supprimer definitivement"
+        tone="danger"
+        errorFallback="Impossible de supprimer le poste."
+        onConfirm={performHardDelete}
+        onClose={() => setDeletingJobTitle(null)}
+      />
     </div>
   );
 }

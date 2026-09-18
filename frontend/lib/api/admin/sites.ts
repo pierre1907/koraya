@@ -35,3 +35,7 @@ export async function updateSite(id: string, payload: SiteUpdatePayload): Promis
 export async function deactivateSite(id: string): Promise<void> {
   await apiClient.delete(`/api/admin/sites/${id}`);
 }
+
+export async function hardDeleteSite(id: string): Promise<void> {
+  await apiClient.delete(`/api/admin/sites/${id}/hard`);
+}

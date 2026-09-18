@@ -7,6 +7,7 @@ import {
   createUser,
   deactivateUser,
   fetchUsers,
+  hardDeleteUser,
   updateUser,
 } from "@/lib/api/admin/users";
 import { SiteAdmin, fetchSites } from "@/lib/api/admin/sites";
@@ -16,11 +17,18 @@ import { AllowedDomainAdmin, fetchAllowedDomains } from "@/lib/api/admin/allowed
 import { getErrorMessage } from "@/lib/api/errors";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import Modal from "@/components/admin/Modal";
+import DetailModal from "@/components/admin/DetailModal";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import StatusBadge from "@/components/admin/StatusBadge";
 import SortableHeader from "@/components/admin/SortableHeader";
 import SearchInput from "@/components/admin/SearchInput";
+import IconButton from "@/components/admin/IconButton";
+import Pagination from "@/components/admin/Pagination";
 import { useSortableData } from "@/lib/hooks/useSortableData";
+import { usePagination } from "@/lib/hooks/usePagination";
 import { UsersIcon } from "@/components/layout/icons";
+import { EyeIcon, PencilIcon, PowerIcon, TrashIcon } from "@/components/admin/icons";
+import { useToast } from "@/components/layout/ToastProvider";
 
 type UserSortKey = "fullName" | "email" | "role" | "site" | "active";
 
@@ -53,6 +61,7 @@ const EMPTY_FORM: UserFormState = {
 };
 
 export default function UsersAdminPage() {
+  const { showToast } = useToast();
   const [users, setUsers] = useState<UserAdmin[]>([]);
   const [sites, setSites] = useState<SiteAdmin[]>([]);
   const [departments, setDepartments] = useState<DepartmentAdmin[]>([]);
@@ -64,9 +73,11 @@ export default function UsersAdminPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserAdmin | null>(null);
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [viewingUser, setViewingUser] = useState<UserAdmin | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserAdmin | null>(null);
+  const [togglingUser, setTogglingUser] = useState<UserAdmin | null>(null);
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
 
   const filteredUsers = users.filter((user) => {
     const query = search.trim().toLowerCase();
@@ -88,6 +99,16 @@ export default function UsersAdminPage() {
     },
     "fullName",
   );
+
+  const {
+    paginated: paginatedUsers,
+    page,
+    setPage,
+    pageSize,
+    changePageSize,
+    totalPages,
+    totalItems,
+  } = usePagination(sortedUsers);
 
   useEffect(() => {
     void load();
@@ -119,7 +140,6 @@ export default function UsersAdminPage() {
   function openCreate() {
     setEditingUser(null);
     setForm({ ...EMPTY_FORM, emailDomainId: domains.find((d) => d.active)?.id ?? "" });
-    setFormError(null);
     setModalOpen(true);
   }
 
@@ -137,66 +157,80 @@ export default function UsersAdminPage() {
       phoneNumber: user.phoneNumber ?? "",
       active: user.active,
     });
-    setFormError(null);
     setModalOpen(true);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    setFormError(null);
+    if (editingUser) {
+      setConfirmingSubmit(true);
+      return;
+    }
     try {
-      if (editingUser) {
-        await updateUser(editingUser.id, {
-          fullName: form.fullName,
-          role: form.role,
-          siteId: form.siteId,
-          departmentId: form.departmentId || null,
-          jobTitleId: form.jobTitleId || null,
-          phoneNumber: form.phoneNumber || undefined,
-          active: form.active,
-        });
-      } else {
-        await createUser({
-          fullName: form.fullName,
-          emailAlias: form.emailAlias,
-          emailDomainId: form.emailDomainId,
-          password: form.password,
-          role: form.role,
-          siteId: form.siteId,
-          departmentId: form.departmentId || null,
-          jobTitleId: form.jobTitleId || null,
-          phoneNumber: form.phoneNumber || undefined,
-        });
-      }
-      setModalOpen(false);
-      await load();
+      await performSave();
     } catch (error) {
-      setFormError(getErrorMessage(error, "Impossible d'enregistrer l'utilisateur."));
-    } finally {
-      setSaving(false);
+      showToast("error", getErrorMessage(error, "Impossible de creer l'utilisateur."));
     }
   }
 
-  async function handleToggleActive(user: UserAdmin) {
-    try {
-      if (user.active) {
-        await deactivateUser(user.id);
-      } else {
-        await updateUser(user.id, {
-          fullName: user.fullName,
-          role: user.role,
-          siteId: user.siteId ?? "",
-          departmentId: user.departmentId,
-          jobTitleId: user.jobTitleId,
-          phoneNumber: user.phoneNumber ?? undefined,
-          active: true,
-        });
-      }
-      await load();
-    } catch (error) {
-      setLoadError(getErrorMessage(error, "Impossible de mettre a jour l'utilisateur."));
+  async function performSave() {
+    if (editingUser) {
+      await updateUser(editingUser.id, {
+        fullName: form.fullName,
+        role: form.role,
+        siteId: form.siteId,
+        departmentId: form.departmentId || null,
+        jobTitleId: form.jobTitleId || null,
+        phoneNumber: form.phoneNumber || undefined,
+        active: form.active,
+      });
+      showToast("success", `Utilisateur "${form.fullName}" modifie.`);
+    } else {
+      await createUser({
+        fullName: form.fullName,
+        emailAlias: form.emailAlias,
+        emailDomainId: form.emailDomainId,
+        password: form.password,
+        role: form.role,
+        siteId: form.siteId,
+        departmentId: form.departmentId || null,
+        jobTitleId: form.jobTitleId || null,
+        phoneNumber: form.phoneNumber || undefined,
+      });
+      showToast("success", `Utilisateur "${form.fullName}" cree.`);
     }
+    setConfirmingSubmit(false);
+    setModalOpen(false);
+    await load();
+  }
+
+  async function performToggle() {
+    if (!togglingUser) return;
+    if (togglingUser.active) {
+      await deactivateUser(togglingUser.id);
+      showToast("success", `Utilisateur "${togglingUser.fullName}" desactive.`);
+    } else {
+      await updateUser(togglingUser.id, {
+        fullName: togglingUser.fullName,
+        role: togglingUser.role,
+        siteId: togglingUser.siteId ?? "",
+        departmentId: togglingUser.departmentId,
+        jobTitleId: togglingUser.jobTitleId,
+        phoneNumber: togglingUser.phoneNumber ?? undefined,
+        active: true,
+      });
+      showToast("success", `Utilisateur "${togglingUser.fullName}" reactive.`);
+    }
+    setTogglingUser(null);
+    await load();
+  }
+
+  async function performHardDelete() {
+    if (!deletingUser) return;
+    await hardDeleteUser(deletingUser.id);
+    showToast("success", `Utilisateur "${deletingUser.fullName}" supprime definitivement.`);
+    setDeletingUser(null);
+    await load();
   }
 
   return (
@@ -216,7 +250,7 @@ export default function UsersAdminPage() {
           </p>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <thead className="border-b border-gray-100 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
               <tr>
                 <SortableHeader label="Nom" sortKeyValue="fullName" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
                 <SortableHeader label="Email" sortKeyValue="email" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
@@ -227,37 +261,47 @@ export default function UsersAdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {sortedUsers.map((user) => (
-                <tr key={user.id}>
-                  <td className="px-6 py-3 font-medium text-gray-900">{user.fullName}</td>
-                  <td className="px-6 py-3 text-gray-500">{user.email}</td>
-                  <td className="px-6 py-3 text-gray-500">{user.role}</td>
-                  <td className="px-6 py-3 text-gray-500">{user.siteName || "—"}</td>
-                  <td className="px-6 py-3">
+              {paginatedUsers.map((user) => (
+                <tr key={user.id} className="transition-colors hover:bg-gray-50/70">
+                  <td className="px-6 py-3.5 font-medium text-gray-900">{user.fullName}</td>
+                  <td className="px-6 py-3.5 text-gray-500">{user.email}</td>
+                  <td className="px-6 py-3.5 text-gray-500">{user.role}</td>
+                  <td className="px-6 py-3.5 text-gray-500">{user.siteName || "—"}</td>
+                  <td className="px-6 py-3.5">
                     <StatusBadge active={user.active} />
                   </td>
-                  <td className="px-6 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(user)}
-                        className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(user)}
-                        className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                      >
-                        {user.active ? "Desactiver" : "Reactiver"}
-                      </button>
+                  <td className="px-6 py-3.5">
+                    <div className="flex justify-end gap-1">
+                      <IconButton icon={EyeIcon} label="Voir le detail" onClick={() => setViewingUser(user)} />
+                      <IconButton icon={PencilIcon} label="Modifier" variant="edit" onClick={() => openEdit(user)} />
+                      <IconButton
+                        icon={PowerIcon}
+                        label={user.active ? "Desactiver" : "Reactiver"}
+                        variant={user.active ? "warning" : "success"}
+                        onClick={() => setTogglingUser(user)}
+                      />
+                      <IconButton
+                        icon={TrashIcon}
+                        label="Supprimer definitivement"
+                        variant="danger"
+                        onClick={() => setDeletingUser(user)}
+                      />
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        )}
+        {!loading && !loadError && totalItems > 0 && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={setPage}
+            onPageSizeChange={changePageSize}
+          />
         )}
       </div>
 
@@ -416,10 +460,6 @@ export default function UsersAdminPage() {
             </label>
           )}
 
-          {formError && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{formError}</p>
-          )}
-
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -430,14 +470,62 @@ export default function UsersAdminPage() {
             </button>
             <button
               type="submit"
-              disabled={saving}
-              className="rounded-md bg-koraya-navy px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+              className="rounded-md bg-koraya-navy px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
             >
-              {saving ? "Enregistrement..." : "Enregistrer"}
+              Enregistrer
             </button>
           </div>
         </form>
       </Modal>
+
+      <DetailModal
+        open={viewingUser !== null}
+        title={viewingUser?.fullName ?? ""}
+        onClose={() => setViewingUser(null)}
+        fields={[
+          { label: "Nom complet", value: viewingUser?.fullName },
+          { label: "Email", value: viewingUser?.email },
+          { label: "Role", value: viewingUser?.role },
+          { label: "Site", value: viewingUser?.siteName || "—" },
+          { label: "Departement", value: departments.find((d) => d.id === viewingUser?.departmentId)?.name || "—" },
+          { label: "Poste", value: jobTitles.find((j) => j.id === viewingUser?.jobTitleId)?.title || "—" },
+          { label: "Telephone", value: viewingUser?.phoneNumber || "—" },
+          { label: "Statut", value: viewingUser ? <StatusBadge active={viewingUser.active} /> : null },
+        ]}
+      />
+
+      <ConfirmDialog
+        open={confirmingSubmit}
+        title="Confirmer la modification"
+        description={`Enregistrer les modifications de "${form.fullName}" ?`}
+        confirmLabel="Enregistrer"
+        tone="primary"
+        errorFallback="Impossible d'enregistrer l'utilisateur."
+        onConfirm={performSave}
+        onClose={() => setConfirmingSubmit(false)}
+      />
+
+      <ConfirmDialog
+        open={togglingUser !== null}
+        title={togglingUser?.active ? "Desactiver cet utilisateur ?" : "Reactiver cet utilisateur ?"}
+        description={`"${togglingUser?.fullName}" sera ${togglingUser?.active ? "desactive" : "reactive"}.`}
+        confirmLabel={togglingUser?.active ? "Desactiver" : "Reactiver"}
+        tone={togglingUser?.active ? "warning" : "success"}
+        errorFallback="Impossible de mettre a jour l'utilisateur."
+        onConfirm={performToggle}
+        onClose={() => setTogglingUser(null)}
+      />
+
+      <ConfirmDialog
+        open={deletingUser !== null}
+        title="Supprimer cet utilisateur ?"
+        description={`Cette action est irreversible. "${deletingUser?.fullName}" sera definitivement supprime.`}
+        confirmLabel="Supprimer definitivement"
+        tone="danger"
+        errorFallback="Impossible de supprimer l'utilisateur."
+        onConfirm={performHardDelete}
+        onClose={() => setDeletingUser(null)}
+      />
     </div>
   );
 }

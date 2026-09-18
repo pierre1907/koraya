@@ -1,10 +1,21 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { login } from "@/lib/auth/authService";
 import AuthLayout from "@/components/auth/AuthLayout";
+
+function SessionExpiredBanner() {
+  const searchParams = useSearchParams();
+  if (searchParams.get("reason") !== "session_expired") return null;
+
+  return (
+    <p className="mb-4 rounded-md border border-koraya-navy/20 bg-koraya-navy/5 px-3 py-2 text-sm text-koraya-navy">
+      Votre session a expire. Merci de vous reconnecter.
+    </p>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,7 +45,13 @@ export default function LoginPage() {
         Bon retour ! Veuillez vous connecter a votre compte
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+      <Suspense fallback={null}>
+        <div className="mt-4">
+          <SessionExpiredBanner />
+        </div>
+      </Suspense>
+
+      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             Email professionnel

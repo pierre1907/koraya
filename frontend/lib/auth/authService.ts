@@ -1,5 +1,5 @@
 import apiClient from "@/lib/api/client";
-import { saveToken, saveCurrentUser } from "@/lib/auth/token";
+import { saveToken, saveRefreshToken, saveCurrentUser, getRefreshToken, clearToken } from "@/lib/auth/token";
 
 export interface LoginPayload {
   email: string;
@@ -8,6 +8,7 @@ export interface LoginPayload {
 
 interface LoginResponse {
   accessToken: string;
+  refreshToken: string;
   tokenType: string;
   fullName: string;
   role: string;
@@ -16,8 +17,20 @@ interface LoginResponse {
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
   const { data } = await apiClient.post<LoginResponse>("/api/auth/login", payload);
   saveToken(data.accessToken);
+  saveRefreshToken(data.refreshToken);
   saveCurrentUser({ fullName: data.fullName, role: data.role });
   return data;
+}
+
+export async function logout(): Promise<void> {
+  const refreshToken = getRefreshToken();
+  try {
+    if (refreshToken) {
+      await apiClient.post("/api/auth/logout", { refreshToken });
+    }
+  } finally {
+    clearToken();
+  }
 }
 
 export interface RegisterPayload {
@@ -42,6 +55,7 @@ export interface DomainOption {
 export async function register(payload: RegisterPayload): Promise<LoginResponse> {
   const { data } = await apiClient.post<LoginResponse>("/api/auth/register", payload);
   saveToken(data.accessToken);
+  saveRefreshToken(data.refreshToken);
   saveCurrentUser({ fullName: data.fullName, role: data.role });
   return data;
 }

@@ -36,3 +36,7 @@ export async function updateDepartment(id: string, payload: DepartmentUpdatePayl
 export async function deactivateDepartment(id: string): Promise<void> {
   await apiClient.delete(`/api/admin/departments/${id}`);
 }
+
+export async function hardDeleteDepartment(id: string): Promise<void> {
+  await apiClient.delete(`/api/admin/departments/${id}/hard`);
+}

@@ -6,7 +6,9 @@ import { UserAdmin, fetchUsers } from "@/lib/api/admin/users";
 import { getErrorMessage } from "@/lib/api/errors";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import SortableHeader from "@/components/admin/SortableHeader";
+import Pagination from "@/components/admin/Pagination";
 import { useSortableData } from "@/lib/hooks/useSortableData";
+import { usePagination } from "@/lib/hooks/usePagination";
 import { AuditIcon } from "@/components/layout/icons";
 import { ActionTone, formatAuditAction, formatEntityType } from "@/lib/format/auditLog";
 
@@ -124,6 +126,16 @@ export default function AuditLogsAdminPage() {
     "desc",
   );
 
+  const {
+    paginated: paginatedLogs,
+    page,
+    setPage,
+    pageSize,
+    changePageSize,
+    totalPages,
+    totalItems,
+  } = usePagination(visibleLogs);
+
   return (
     <div>
       <AdminPageHeader title="Journal d'audit" icon={AuditIcon} />
@@ -190,7 +202,7 @@ export default function AuditLogsAdminPage() {
           <button
             type="button"
             onClick={() => void load(true)}
-            className="rounded-md border border-gray-200 px-3 py-1.5 font-medium text-gray-600 hover:bg-gray-50"
+            className="rounded-md border border-gray-200 px-3 py-1.5 font-medium text-gray-600 transition hover:border-koraya-navy/30 hover:bg-koraya-navy/5 hover:text-koraya-navy"
           >
             Rafraichir
           </button>
@@ -206,7 +218,7 @@ export default function AuditLogsAdminPage() {
           <p className="px-6 py-8 text-center text-sm text-gray-500">Aucun evenement trouve.</p>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <thead className="border-b border-gray-100 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
               <tr>
                 <SortableHeader label="Date" sortKeyValue="createdAt" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
                 <SortableHeader label="Acteur" sortKeyValue="actor" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
@@ -216,26 +228,36 @@ export default function AuditLogsAdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {visibleLogs.map((log) => {
+              {paginatedLogs.map((log) => {
                 const action = formatAuditAction(log.action);
                 return (
-                  <tr key={log.id}>
-                    <td className="whitespace-nowrap px-6 py-3 text-gray-500">{formatDate(log.createdAt)}</td>
-                    <td className="px-6 py-3 text-gray-900">{actorName(log)}</td>
-                    <td className="px-6 py-3">
+                  <tr key={log.id} className="transition-colors hover:bg-gray-50/70">
+                    <td className="whitespace-nowrap px-6 py-3.5 text-gray-500">{formatDate(log.createdAt)}</td>
+                    <td className="px-6 py-3.5 font-medium text-gray-900">{actorName(log)}</td>
+                    <td className="px-6 py-3.5">
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${TONE_CLASSES[action.tone]}`}
                       >
                         {action.label}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-gray-500">{formatEntityType(log.entityType)}</td>
-                    <td className="px-6 py-3 text-gray-500">{log.details || "—"}</td>
+                    <td className="px-6 py-3.5 text-gray-500">{formatEntityType(log.entityType)}</td>
+                    <td className="px-6 py-3.5 text-gray-500">{log.details || "—"}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+        )}
+        {!loading && !loadError && totalItems > 0 && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={setPage}
+            onPageSizeChange={changePageSize}
+          />
         )}
       </div>
     </div>
