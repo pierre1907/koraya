@@ -18,7 +18,7 @@ public class AuditLogController {
     private final AuditLogService auditLogService;
 
     @GetMapping
-    public ResponseEntity<Page<AuditLogSummary>> list(@PageableDefault(size = 20) Pageable pageable) {
+    public ResponseEntity<Page<AuditLogSummary>> list(@PageableDefault(size = 10) Pageable pageable) {
         return ResponseEntity.ok(auditLogService.findRecent(pageable).map(AuditLogSummary::of));
     }
 }

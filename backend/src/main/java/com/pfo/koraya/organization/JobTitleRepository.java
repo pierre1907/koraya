@@ -8,4 +8,6 @@ import java.util.UUID;
 public interface JobTitleRepository extends JpaRepository<JobTitle, UUID> {
 
     Optional<JobTitle> findByTitleIgnoreCase(String title);
+
+    boolean existsByTitleIgnoreCaseAndIdNot(String title, UUID id);
 }

@@ -25,7 +25,7 @@ public class DepartmentAdminController {
 
     @GetMapping
     public ResponseEntity<Page<DepartmentAdminResponse>> list(
-            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+            @PageableDefault(size = 10, sort = "name") Pageable pageable) {
         return ResponseEntity.ok(departmentService.findAll(pageable).map(DepartmentAdminResponse::of));
     }
 
@@ -48,6 +48,12 @@ public class DepartmentAdminController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deactivate(@PathVariable UUID id, @AuthenticationPrincipal User currentUser) {
         departmentService.deactivate(id, currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/hard")
+    public ResponseEntity<Void> hardDelete(@PathVariable UUID id, @AuthenticationPrincipal User currentUser) {
+        departmentService.hardDelete(id, currentUser.getId());
         return ResponseEntity.noContent().build();
     }
 }

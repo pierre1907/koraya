@@ -98,6 +98,23 @@ public class UserAdminService {
         auditLogService.record(actorId, "USER_DELETED", "User", user.getId(), "Compte desactive : " + user.getEmail());
     }
 
+    /**
+     * Suppression physique, irreversible. Rien d'autre ne bloque cette
+     * operation cote FK : refresh_token.user_id est ON DELETE CASCADE et
+     * audit_log.actor_user_id est ON DELETE SET NULL (l'historique d'audit
+     * est conserve, seul le lien vers l'auteur est efface).
+     */
+    @Transactional
+    public void hardDelete(UUID id, UUID actorId) {
+        User user = findById(id);
+        if (id.equals(actorId)) {
+            throw new IllegalStateException("Impossible de supprimer definitivement votre propre compte.");
+        }
+        String email = user.getEmail();
+        userRepository.delete(user);
+        auditLogService.record(actorId, "USER_HARD_DELETED", "User", id, "Compte supprime definitivement : " + email);
+    }
+
     private Site resolveSite(UUID siteId) {
         return siteRepository.findById(siteId)
                 .filter(Site::isActive)

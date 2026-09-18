@@ -24,7 +24,7 @@ public class SiteAdminController {
     private final SiteService siteService;
 
     @GetMapping
-    public ResponseEntity<Page<SiteAdminResponse>> list(@PageableDefault(size = 20, sort = "name") Pageable pageable) {
+    public ResponseEntity<Page<SiteAdminResponse>> list(@PageableDefault(size = 10, sort = "name") Pageable pageable) {
         return ResponseEntity.ok(siteService.findAll(pageable).map(SiteAdminResponse::of));
     }
 
@@ -46,6 +46,12 @@ public class SiteAdminController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deactivate(@PathVariable UUID id, @AuthenticationPrincipal User currentUser) {
         siteService.deactivate(id, currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/hard")
+    public ResponseEntity<Void> hardDelete(@PathVariable UUID id, @AuthenticationPrincipal User currentUser) {
+        siteService.hardDelete(id, currentUser.getId());
         return ResponseEntity.noContent().build();
     }
 }

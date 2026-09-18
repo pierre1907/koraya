@@ -1,6 +1,7 @@
 package com.pfo.koraya.organization;
 
 import com.pfo.koraya.audit.AuditLogService;
+import com.pfo.koraya.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,6 +17,7 @@ import java.util.UUID;
 public class JobTitleService {
 
     private final JobTitleRepository jobTitleRepository;
+    private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
     public List<JobTitle> findAllActive() {
@@ -67,7 +69,11 @@ public class JobTitleService {
     @Transactional
     public JobTitle update(UUID id, String title, boolean active, UUID actorId) {
         JobTitle jobTitle = findById(id);
-        jobTitle.setTitle(title.trim());
+        String trimmed = title.trim();
+        if (jobTitleRepository.existsByTitleIgnoreCaseAndIdNot(trimmed, id)) {
+            throw new IllegalStateException("Ce poste existe deja");
+        }
+        jobTitle.setTitle(trimmed);
         jobTitle.setActive(active);
         JobTitle saved = jobTitleRepository.save(jobTitle);
         auditLogService.record(actorId, "JOB_TITLE_UPDATED", "JobTitle", saved.getId(),
@@ -82,5 +88,23 @@ public class JobTitleService {
         jobTitleRepository.save(jobTitle);
         auditLogService.record(actorId, "JOB_TITLE_DEACTIVATED", "JobTitle", jobTitle.getId(),
                 "Poste desactive : " + jobTitle.getTitle());
+    }
+
+    /**
+     * Suppression physique, irreversible. Refusee si le poste est encore
+     * reference par un utilisateur (contrainte FK reelle en base sur
+     * app_user.job_title_id).
+     */
+    @Transactional
+    public void hardDelete(UUID id, UUID actorId) {
+        JobTitle jobTitle = findById(id);
+        if (userRepository.existsByJobTitleId(id)) {
+            throw new IllegalStateException(
+                    "Impossible de supprimer definitivement ce poste : encore reference par au moins un utilisateur.");
+        }
+        String title = jobTitle.getTitle();
+        jobTitleRepository.delete(jobTitle);
+        auditLogService.record(actorId, "JOB_TITLE_HARD_DELETED", "JobTitle", id,
+                "Poste supprime definitivement : " + title);
     }
 }

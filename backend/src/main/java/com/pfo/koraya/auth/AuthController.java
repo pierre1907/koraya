@@ -16,6 +16,7 @@ import com.pfo.koraya.user.User;
 import com.pfo.koraya.user.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -48,6 +50,7 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(request.email(), request.password())
             );
         } catch (AuthenticationException e) {
+            log.warn("Connexion echouee pour {} : {}", request.email(), e.getMessage());
             auditLogService.record(null, "LOGIN_FAILED", "User", null,
                     "Tentative de connexion echouee : " + request.email());
             throw e;
@@ -64,6 +67,7 @@ public class AuthController {
 
         auditLogService.record(user.getId(), "LOGIN_SUCCESS", "User", user.getId(),
                 "Connexion reussie : " + user.getEmail());
+        log.info("Connexion reussie : {}", user.getEmail());
 
         return ResponseEntity.ok(LoginResponse.of(accessToken, refreshToken, user.getFullName(), user.getRole().name()));
     }
@@ -80,6 +84,7 @@ public class AuthController {
         String newRefreshToken = refreshTokenService.issue(user);
 
         auditLogService.record(user.getId(), "TOKEN_REFRESHED", "User", user.getId(), "Renouvellement de session");
+        log.info("Token rafraichi pour : {}", user.getEmail());
 
         return ResponseEntity.ok(LoginResponse.of(accessToken, newRefreshToken, user.getFullName(), user.getRole().name()));
     }
@@ -87,8 +92,10 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
         refreshTokenService.revoke(request.refreshToken())
-                .ifPresent(token -> auditLogService.record(token.getUserId(), "LOGOUT", "User",
-                        token.getUserId(), "Deconnexion"));
+                .ifPresent(token -> {
+                    auditLogService.record(token.getUserId(), "LOGOUT", "User", token.getUserId(), "Deconnexion");
+                    log.info("Deconnexion pour l'utilisateur {}", token.getUserId());
+                });
         return ResponseEntity.noContent().build();
     }
 
@@ -133,6 +140,7 @@ public class AuthController {
         userRepository.save(user);
         auditLogService.record(user.getId(), "USER_REGISTERED", "User", user.getId(),
                 "Inscription via formulaire public : " + email);
+        log.info("Nouvel utilisateur enregistre : {}", email);
 
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = refreshTokenService.issue(user);

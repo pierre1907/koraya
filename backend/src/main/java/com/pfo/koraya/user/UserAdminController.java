@@ -24,7 +24,7 @@ public class UserAdminController {
 
     @GetMapping
     public ResponseEntity<Page<UserAdminResponse>> list(
-            @PageableDefault(size = 20, sort = "fullName") Pageable pageable) {
+            @PageableDefault(size = 10, sort = "fullName") Pageable pageable) {
         return ResponseEntity.ok(userAdminService.findAll(pageable).map(UserAdminResponse::of));
     }
 
@@ -52,6 +52,12 @@ public class UserAdminController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deactivate(@PathVariable UUID id, @AuthenticationPrincipal User currentUser) {
         userAdminService.deactivate(id, currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/hard")
+    public ResponseEntity<Void> hardDelete(@PathVariable UUID id, @AuthenticationPrincipal User currentUser) {
+        userAdminService.hardDelete(id, currentUser.getId());
         return ResponseEntity.noContent().build();
     }
 }

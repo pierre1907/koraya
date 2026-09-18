@@ -25,7 +25,7 @@ public class AllowedEmailDomainAdminController {
 
     @GetMapping
     public ResponseEntity<Page<AllowedEmailDomainAdminResponse>> list(
-            @PageableDefault(size = 20, sort = "domain") Pageable pageable) {
+            @PageableDefault(size = 10, sort = "domain") Pageable pageable) {
         return ResponseEntity.ok(allowedEmailDomainService.findAll(pageable).map(AllowedEmailDomainAdminResponse::of));
     }
 
@@ -43,5 +43,11 @@ public class AllowedEmailDomainAdminController {
             @AuthenticationPrincipal User currentUser) {
         AllowedEmailDomain domain = allowedEmailDomainService.setActive(id, request.active(), currentUser.getId());
         return ResponseEntity.ok(AllowedEmailDomainAdminResponse.of(domain));
+    }
+
+    @DeleteMapping("/{id}/hard")
+    public ResponseEntity<Void> hardDelete(@PathVariable UUID id, @AuthenticationPrincipal User currentUser) {
+        allowedEmailDomainService.hardDelete(id, currentUser.getId());
+        return ResponseEntity.noContent().build();
     }
 }
