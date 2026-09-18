@@ -1,6 +1,7 @@
 package com.pfo.koraya.common;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -28,6 +29,16 @@ public class ApiExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
         return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    /**
+     * Filet de securite : si une contrainte d'unicite/integrite en base est
+     * violee sans avoir ete anticipee par une verification applicative, on
+     * renvoie un 409 propre plutot qu'un 500 brut.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        return build(HttpStatus.CONFLICT, "Cette operation viole une contrainte d'unicite ou d'integrite en base.");
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

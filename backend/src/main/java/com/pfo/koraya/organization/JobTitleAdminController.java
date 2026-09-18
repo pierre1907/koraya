@@ -25,7 +25,7 @@ public class JobTitleAdminController {
 
     @GetMapping
     public ResponseEntity<Page<JobTitleAdminResponse>> list(
-            @PageableDefault(size = 20, sort = "title") Pageable pageable) {
+            @PageableDefault(size = 10, sort = "title") Pageable pageable) {
         return ResponseEntity.ok(jobTitleService.findAll(pageable).map(JobTitleAdminResponse::of));
     }
 
@@ -47,6 +47,12 @@ public class JobTitleAdminController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deactivate(@PathVariable UUID id, @AuthenticationPrincipal User currentUser) {
         jobTitleService.deactivate(id, currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/hard")
+    public ResponseEntity<Void> hardDelete(@PathVariable UUID id, @AuthenticationPrincipal User currentUser) {
+        jobTitleService.hardDelete(id, currentUser.getId());
         return ResponseEntity.noContent().build();
     }
 }

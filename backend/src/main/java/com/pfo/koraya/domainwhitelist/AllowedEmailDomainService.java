@@ -1,6 +1,7 @@
 package com.pfo.koraya.domainwhitelist;
 
 import com.pfo.koraya.audit.AuditLogService;
+import com.pfo.koraya.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,6 +17,7 @@ import java.util.UUID;
 public class AllowedEmailDomainService {
 
     private final AllowedEmailDomainRepository repository;
+    private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
     public List<AllowedEmailDomain> findAllActive() {
@@ -90,5 +92,33 @@ public class AllowedEmailDomainService {
         String cleanAlias = alias.trim().toLowerCase();
         String cleanDomain = domain.trim().toLowerCase().replaceFirst("^@", "");
         return cleanAlias + "@" + cleanDomain;
+    }
+
+    /**
+     * Suppression physique, irreversible. Refusee si au moins un compte
+     * utilise encore ce domaine (pas de FK reelle en base ici, l'email etant
+     * stocke compose sur app_user.email, d'ou la verification applicative),
+     * ou si c'est le dernier domaine actif du systeme.
+     */
+    @Transactional
+    public void hardDelete(UUID id, UUID actorId) {
+        AllowedEmailDomain domain = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Domaine introuvable"));
+
+        if (userRepository.existsByEmailEndingWithIgnoreCase("@" + domain.getDomain())) {
+            throw new IllegalStateException(
+                    "Impossible de supprimer definitivement ce domaine : au moins un compte l'utilise encore.");
+        }
+
+        long activeCount = repository.findByActiveTrue().size();
+        if (domain.isActive() && activeCount <= 1) {
+            throw new IllegalStateException(
+                    "Impossible de supprimer le dernier domaine email actif du systeme.");
+        }
+
+        String domainName = domain.getDomain();
+        repository.delete(domain);
+        auditLogService.record(actorId, "DOMAIN_HARD_DELETED", "AllowedEmailDomain", id,
+                "Domaine supprime definitivement : " + domainName);
     }
 }
